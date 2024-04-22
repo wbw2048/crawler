@@ -2,80 +2,41 @@ import multiprocessing
 import concurrent.futures
 import json
 import os
+import threading
 import time
 
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 import requests
 from bs4 import BeautifulSoup
 
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36'
-}
-global_thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()+1)
+class Proxy:
+    def __init__(self):
+        self._lock = threading.RLock()
+        self.index = 0
+        self.proxy_list = []
+        self.url = "https://www.zdaye.com/free/?ip=&adr=&checktime=&sleep=&cunhuo=&dengji=&nadr=&https=1&yys=&post=%E6%94%AF%E6%8C%81&px="
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36 Edge/16.16299"
+        }
+        self.refresh_proxy()
 
-
-def get_html(url):
-    # 发起HTTP GET请求获取页面内容
-    response = requests.get(url, headers=headers)
-    # 检查请求是否成功
-    if response.status_code == 200:
-        # 使用BeautifulSoup解析HTML
-        soup = BeautifulSoup(response.content, 'html.parser')
-        return soup
-    return None
-def get_search_data(en):
-    i = 1
-    while True:
-        time.sleep(1)
-        url = f'https://www.1905.com/mdb/film/list/country-{en}/o0d0p{i}.html'
-        soup = get_html(url)
-        if soup is None:
-            return None
-        li_tags = soup.find_all('li', class_='fl line')
-        if len(li_tags) == 0:
-            return None
-        i += 1
-        for li_tag in li_tags:
-            a_tag = li_tag.find('a')
-            if a_tag:
-                href = a_tag.get('href')
-                yield href
-        else:
-            return None
-
-def get_data_info(href):
-    time.sleep(1)
-    url = f'https://www.1905.com{href}/info'
-    soup = get_html(url)
-    if soup is None:
-        return None
-    dt_list = soup.find_all('dt')
-    dd_list = soup.find_all('dd')
-    片名 = soup.title.text
-    info = {}
-    for i in range(len(dt_list)):
-        dt = dt_list[i].text.strip().replace(' ', '')
-        dd = dd_list[i].text.strip().replace(' ', '')
-        if dt != '' and dd != '':
-            info[dt] = dd
-    json_file = f'data{href}{片名}.json'
-    if not os.path.exists(os.path.dirname(json_file)):
-        os.makedirs(os.path.dirname(json_file))
-    if not os.path.exists(json_file):
-        with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(info, f, ensure_ascii=False, indent=4)
-    return info
-
-if __name__ == '__main__':
-    futures =[]
-    with open('country.txt', 'r', encoding='utf-8') as file:
-        country = json.loads(file.read())
-    for ct in country['nation']:
-        for href in get_search_data(ct['en']):
-            if href is not None:
-                futures.append(global_thread_pool.submit(get_data_info, href))
-            else:
-                break
-            if len(futures) > 20:
-                for future in futures:
-                    print(future.result())
-                futures = []
+    def get_proxy(self):
+        self.index += 1
+        if self.index >= len(self.proxy_list):
+            self.index = 0
+        return self.proxy_list[self.index-1]
+    def refresh_proxy(self):
+        response = requests.get(self.url, headers=self.headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        ip_list = soup.find('table', {'id': 'ipc'}).find_all('tr')
+        proxy_list = []
+        for ip in ip_list:
+            tds = ip.select("td")
+            ip_address = tds[0].text
+            ip_port = tds[1].text
+            proxy_list.append({
+                'http': "http://{0}:{1}".format(ip_address, ip_port),
+                'https': "https://{0}:{1}".format(ip_address, ip_port)
+            })
