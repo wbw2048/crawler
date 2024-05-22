@@ -6,7 +6,6 @@ import time
 from tqdm import tqdm
 import requests
 from bs4 import BeautifulSoup
-from Proxy import Proxy
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36'
@@ -40,10 +39,9 @@ def read_file_to_set(filename):
 def get_html(url):
     # 发起HTTP GET请求获取页面内容
     while True:
-        # proxy_disc = proxy.get_proxy()
-        authKey = 'CE14FC5C'
-        password = 'E226226BF551'
-        proxyAddr = 'tun-lreqvr.qg.net:15773'
+        authKey = '5EDF9E65'
+        password = '572E0B0700A1'
+        proxyAddr = 'tun-oolotr.qg.net:15796'
         proxyUrl = "http://%(user)s:%(password)s@%(server)s" % {
             "user": authKey,
             "password": password,
@@ -70,21 +68,14 @@ def get_data_info(href):
         soup = None
         while soup is None:
             soup = get_html(url)
-        dt_list = soup.find_all('dt')
-        dd_list = soup.find_all('dd')
+        h3_list = soup.find_all('h3')
         info = {}
-        for i in range(len(dt_list)):
-            dt = dt_list[i].text.strip().replace(' ', '')
-            dd = dd_list[i].text.strip().replace(' ', '')
-            if dt != '' and dd != '':
-                info[dt] = dd
-        url = f'http://www.1905.com{href}scenario'
-        soup = None
-        while soup is None:
-            soup = get_html(url)
-        scenario = soup.find_all('li')
-        scenario = scenario[len(scenario) - 1].text.replace('\n', '')
-        info['scenario'] = scenario
+        for i in range(len(h3_list)):
+            key = h3_list[i].text.strip()
+            text = h3_list[i].find_next('div').text.strip()
+            if key == '':
+                continue
+            info[key] = text
         url = f'http://www.1905.com{href}performer'
         soup = None
         while soup is None:

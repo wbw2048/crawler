@@ -105,7 +105,7 @@ def save_one_note(note, keyword, dir_path='data'):
         time.sleep(1)
 
 if __name__ == '__main__':
-    query = '婚纱照'
+    query = '古装服装搭配'
     dir_path = 'data'
     for note in get_note_list(query):
         save_one_note(note, query, dir_path=dir_path)
